@@ -1,0 +1,516 @@
+---
+title: "Homework3"
+author: "Yuqian Liu"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: html_document
+---
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+## some utility functions, see the source code for details
+source("utils_template.R")
+
+## specify the packages needed
+pkgs <- c("splines2", "DT", "webshot", "leaflet")
+need.packages(pkgs)
+
+## external data can be read in by regular functions,
+## such as read.table or load
+
+## get output format in case something needs extra effort
+outFormat <- knitr::opts_knit$get("rmarkdown.pandoc.to")
+## "latex" or "html"
+
+## for latex and html output
+isHtml <- identical(outFormat, "html")
+isLatex <- identical(outFormat, "latex")
+latex <- ifelse(isLatex, '\\LaTeX\\', 'LaTeX')
+
+## specify global chunk options
+knitr::opts_chunk$set(fig.width = 5, fig.height = 4, dpi = 300,
+                      out.width = "90%", fig.align = "center")
+
+```
+
+# Problem 1
+**Answer:** 
+
+Verify the validity of the provided algorithm, which means to derive the
+updating rules in the given algorithm based on the construction of an EM algorithm.
+\begin{align}
+\begin{array}{l}
+Q(\Psi|\Psi^{(k)})=E_z\{l_n^c(\Psi)\} \\
+=\sum\limits_{i = 1}^n \sum\limits_{j = 1}^m p_{ij}^{(k+1)}\{log\pi_j + 
+log\phi(y_i-x_i^T\beta_j;0,\sigma^2)\} \\
+=\sum\limits_{i = 1}^n \sum\limits_{j = 1}^m p_{ij}^{(k+1)}\{log\pi_j + 
+log\frac{1}{\sqrt{2\pi}\sigma}exp(-\frac{(y_i-x_i^T\beta_j)^2}{2\sigma^2})\} \\
+=\sum\limits_{i = 1}^n \sum\limits_{j = 1}^m p_{ij}^{(k+1)}\{log\pi_j + 
+log\frac{1}{\sqrt{2\pi}\sigma} + (-\frac{(y_i-x_i^T\beta_j)^2}{2\sigma^2})\} \\
+=\sum\limits_{i = 1}^n \sum\limits_{j = 1}^m p_{ij}^{(k+1)} log\pi_j - \frac{1}{2}
+\sum\limits_{i = 1}^n \sum\limits_{j = 1}^m p_{ij}^{(k+1)}log{2\pi}\sigma^2 - \frac{1}{2}
+\sum\limits_{i = 1}^n \sum\limits_{j = 1}^m p_{ij}^{(k+1)}\frac{(y_i-x_i^T\beta_j)^2}{2\sigma^2}\\
+=I_1-\frac{I_2}{2}-\frac{I_3}{2}
+\end{array}
+\end{align}
+Thus,
+\begin{align}
+\begin{array}{l}
+I_1 = \sum\limits_{i = 1}^n \sum\limits_{j = 1}^m p_{ij}^{(k+1)} log\pi_j \\
+I_2 =
+\sum\limits_{i = 1}^n \sum\limits_{j = 1}^m p_{ij}^{(k+1)}log{2\pi}\sigma^2 \\
+I_3 = 
+\sum\limits_{i = 1}^n \sum\limits_{j = 1}^m p_{ij}^{(k+1)}\frac{(y_i-x_i^T\beta_j)^2}{2\sigma^2}
+\end{array}
+\end{align}
+Follow the lecture note, only $I_3$ contains $\beta_j$ for every certain $j$ in a quadratic form. 
+TO minimize it, from the property of sample mean, $\beta_j$ must be the mean of a weighted sample 
+$\frac{y_1}{x_1^T}, . . . , \frac{y_n}{x_n^T},$ each $\frac{y_i}{x_i^T}$ having weight 
+$x_ix_i^Tp_{ij}^{(k+1)}$. So
+
+each xi having weight wik.
+\begin{align}
+\beta_j^{k+1} = \frac{\sum\limits_{i = 1}^n x_ip_{ij}^{(k+1)}y_i}
+{\sum\limits_{i = 1}^n x_ix_i^Tp_{ij}^{(k+1)}}
+\end{align}
+
+Next, only $I_2$ and $I_3$ contain $\sigma^{2(k+1)}$, to minimize $I_2+I_3$, $\sigma^2$ must be the
+sample variance of the weighted sample. So
+\begin{align}
+\begin{array}{l}
+\sigma^{2(k+1)} = 
+\frac{\sum\limits_{j = 1}^m \sum\limits_{i = 1}^n p_{ij}^{(k+1)}(y_i-x_i^T\beta_j^{(k+1)}-0)^2}
+{\sum\limits_{j = 1}^m \sum\limits_{i = 1}^n p_{ij}^{(k+1)}} \\
+=\frac{\sum\limits_{j = 1}^m \sum\limits_{i = 1}^n p_{ij}^{(k+1)}(y_i-x_i^T\beta_j^{(k+1)})^2}{n}
+\end{array}
+\end{align}
+
+Finally, only $I_1$ contains $\pi_j$ in $Q(\Psi|\Psi^{(k)})$, 
+and $\sum\limits_{j = 1}^m \pi_j=1$. By using Lagrange method, construct
+\begin{align}
+\begin{array}{l}
+\mathcal{L}(\pi_1,...,\pi_m,\lambda) = Q(\Psi|\Psi^{(k)})-\lambda(\sum\limits_{j = 1}^m \pi_j-1) =0
+\end{array}
+\end{align}
+
+In order to maxmize it, take first derivative of it respect to $\pi_j$ and $\lambda$,
+\begin{align}
+\begin{array}{l}
+\mathcal{L}(\pi_1,...,\pi_m,\lambda)_{\pi_j}' =0\\
+\mathcal{L}(\pi_1,...,\pi_m,\lambda)_{\lambda}' =0
+\end{array}
+\end{align}
+
+From $\mathcal{L}'_{\pi_j}$,
+\begin{align}
+\sum\limits_{i = 1}^n p_{ij}^{(k+1)}(\frac{1}{\pi_j})-\lambda = 0 
+\end{align}
+
+Thus,
+\begin{align}
+\begin{array}{l}
+\pi_j = \frac{\sum\limits_{i = 1}^n p_{ij}^{(k+1)}}{\lambda}\\
+\because \sum\limits_{j = 1}^m \pi_j=1\\
+\sum\limits_{j = 1}^m \pi_j
+= \frac{\sum\limits_{j = 1}^m\sum\limits_{i = 1}^n p_{ij}^{(k+1)}}{\lambda}\\
+=\frac{n}{\lambda}\\
+\therefore \lambda = n  \qquad and \qquad
+\pi_j = \frac{\sum\limits_{i = 1}^n p_{ij}^{(k+1)}}{n}
+\end{array}
+\end{align}
+
+# Problem 2
+**Answer:** 
+
+
+a) Because $g(x) \propto (2x^{\theta-1}+x^{\theta-1/2})e^{-x}$, the normalizing constant $C$ 
+for g is the constant such that $\int_0 ^\infty g(x) = 1$,
+\begin{align}
+C\int_0 ^\infty (2x^{\theta-1}+x^{\theta-1/2})e^{-x}dx = 1
+\end{align}
+Thus, 
+\begin{align}
+\int_0 ^\infty (2x^{\theta-1}+x^{\theta-1/2})e^{-x}dx = 
+\int_0 ^\infty 2x^{\theta-1}e^{-x}dx +\int_0 ^\infty x^{\theta-1/2}e^{-x}dx
+ (\#eq:2a)
+\end{align}
+By the definition of gamma function,
+\begin{align}
+\Gamma(y) = \int_0 ^\infty x^{y-1}e^{-x}dx
+\end{align}
+Thus, the integration of Equation \@ref(eq:2a) is equal to,
+\begin{align}
+\int_0 ^\infty (2x^{\theta-1}+x^{\theta-1/2})e^{-x}dx = 
+2\Gamma(\theta)+\Gamma(\theta+1/2)
+\end{align}
+and,
+\begin{align}
+C = \frac{1}{2\Gamma(\theta)+\Gamma(\theta+1/2)} \\
+g = C(2x^{\theta-1}+x^{\theta-1/2})e^{-x}
+\end{align}
+g is a mixture of Gamma distributions, and rewrite it into 
+
+\begin{align}
+g = 2C*\Gamma(\theta) \frac{x^{\theta-1}e^{-x}}{\Gamma(\theta)} 
++ C*\Gamma(\theta+1/2) \frac{x^{\theta-1/2}e^{-x}}{\Gamma(\theta+1/2)} 
+\end{align}
+Thus, 
+\begin{align}
+g = 2C\Gamma(\theta) Gamma(\theta,1) + C\Gamma(\theta+1/2)Gamma(\theta+1/2,1)
+\end{align}
+The weights for two terms are 
+$\frac{2\Gamma(\theta)}{2\Gamma(\theta)+\Gamma(\theta+1/2)}$ and 
+$\frac{\Gamma(\theta+1/2)}{2\Gamma(\theta)+\Gamma(\theta+1/2)}$ respectively.
+
+b) Using $\theta = 0.5$, thus $\Gamma(\theta)=\Gamma(0.5)=1.772454$ and 
+$\Gamma(\theta+1/2)=\Gamma(1)=1$.
+\begin{align}
+C = \frac{1}{2\Gamma(0.5)+\Gamma(1)}=0.2200265 \\
+g(x) = C(2x^{-0.5}+x^0)e^{-x}= C(2x^{-0.5}+1)e^{-x}
+\end{align}
+A procedure (pseudo-code) is degined to sample from g with sample size $n=10,000$.
+The code chunk implementing Inverse transform method is given as follow,
+
+```{r, eval = TRUE}
+#The number of samples from the mixture distribution
+N <- 10000                 
+
+#Sample N random uniforms U
+U <- runif(N)
+
+#Variable to store the samples from the mixture distribution                                             
+rand.samples1 <- rep(NA,N)
+rand.samples2 <- rep(NA,N)
+
+#Weights
+theta1 <- 0.5
+theta2 <- 2
+C1 <- 1/(2*gamma(theta1)+gamma(theta1+0.5))
+c11 <- 2*C1*gamma(theta1)
+c12 <- C1*gamma(theta1+0.5)
+C2 <- 1/(2*gamma(theta2)+gamma(theta2+0.5))
+c21 <- 2*C2*gamma(theta2)
+c22 <- C2*gamma(theta2+0.5)
+
+#Sampling from the mixture
+for(i in 1:N){
+  if(U[i]<c11){
+    rand.samples1[i] <- rgamma(1,theta1,rate = 1)
+  }else{
+    rand.samples1[i] <- rgamma(1,theta1+0.5,rate = 1)
+  }
+}
+
+for(i in 1:N){
+  if(U[i]<c21){
+    rand.samples2[i] <- rgamma(1,theta2,rate = 1)
+  }else{
+    rand.samples2[i] <- rgamma(1,theta2+0.5,rate = 1)
+  }
+}
+```
+The kernel density estimation of g from my sample and the true density are plotted 
+in the following figure. There are 2 cases with different $\theta$ values.
+
+
+**case1:** $\theta= 0.5$ 
+```{r Q2b1, echo = FALSE, fig.width = 8}
+x <-  seq(0,10,.1)
+truth1 <- c11*dgamma(x,theta1,1) + c12*dgamma(x,theta1+0.5,1)
+hist(rand.samples1, freq=FALSE, main="Estimation Density vs True Density of the Mixture Model")
+lines(x,truth1,col="red",lwd=2)
+legend("topright",c("True Density","Estimated Density"),col=c("red","black"),lwd=2)
+
+plot(density(rand.samples1),main="Density Estimate of the Mixture Model",ylim=c(0,2),lwd=2)
+lines(x,truth1,col="red",lwd=2)
+legend("topright",c("True Density","Estimated Density"),col=c("red","black"),lwd=2)
+```
+
+**case2:** $\theta= 2$ 
+```{r Q2b2, echo = FALSE, fig.width = 8}
+truth2 <- c21*dgamma(x,theta2,1) + c22*dgamma(x,theta2+0.5,1)
+hist(rand.samples2, freq=FALSE, main="Estimation Density vs True Density of the Mixture Model")
+lines(x,truth2,col="red",lwd=2)
+legend("topright",c("True Density","Estimated Density"),col=c("red","black"),lwd=2)
+
+plot(density(rand.samples2),main="Density Estimate of the Mixture Model",ylim=c(0,2),lwd=2)
+lines(x,truth2,col="red",lwd=2)
+legend("topright",c("True Density","Estimated Density"),col=c("red","black"),lwd=2)
+```
+
+c) A procedure (pseudo-code) is degined to use rejection sampling to sample from 
+f using g as the instrumental distribution, which means
+$f(x)\le \alpha g(x)$ for all $x\in (0,\infty)$, where $\alpha g(x)$ is the envelope.
+Since $f(x) \propto \sqrt{4+x}x^{\theta-1}e^{-x}$, the
+normalizing constant for $f(x)$ 
+\begin{align}
+C'=\frac{1}{\int_0^{\infty} \sqrt{4+x}x^{\theta-1}e^{-x}dx}
+\end{align}
+From b), use case 1's setting $\theta=0.5$. Thus, $C'=0.26666$.
+By plotting $f(x)$ and $\alpha g(x)$ with different values of $\alpha$. $\alpha = 5$ is picked to set 
+up the envelop.
+
+
+The code chunk implementing Rejection sampling is given as follow,
+```{r, eval = TRUE}
+# The number of samples from the mixture distribution
+N2 <- 10000                 
+
+# Variable to store the samples from the mixture distribution                                             
+rand.samplesF <- rep(NA,N2)
+
+# Check for the normalizing constant 
+integrandF <- function(x) {sqrt(4+x)*x^(-0.5)*exp(-x)}
+C_f <- integrate(integrandF, lower = 0, upper = Inf)
+C_f <- C_f$value
+C_f <- 1/C_f
+
+# Envelope setting: alpha \in (10,20)
+alpha <- 5
+theta <- 0.5
+C <- 1/(2*gamma(theta)+gamma(theta+0.5))
+c1 <- 2*C*gamma(theta)
+c2 <- C*gamma(theta+0.5)
+g_x <- function(x) {c1*dgamma(x,theta,1) + c2*dgamma(x,theta+0.5,1)}
+
+# Plot f and envelop
+x_value <- seq(0,5,.05)
+F <- function(x) {sqrt(4+x)*x^(0.5-1)*exp(-x)}
+truthF <- C_f*F(x_value)
+#plot(x_value,truthF,col="red",lwd=2)
+truthG <- c1*dgamma(x_value,theta,1) + c2*dgamma(x_value,theta+0.5,1)
+Envelop <- alpha*truthG
+#lines(x_value,Envelop,col="blue",lwd=2)
+
+#Rejection Sampling from the envelop
+for (i in 1:N2) {
+  while (TRUE) {
+    U <- runif(1)
+    if(U < c1){
+      cand <- rgamma(1,theta,rate = 1)
+    }else{
+      cand <- rgamma(1,theta+0.5,rate = 1)
+    }
+    ratio <- F(cand)/(alpha*g_x(cand))
+    if (U < ratio) break
+  }
+  rand.samplesF[i] <- cand
+}
+```
+The the estimated density of a random sample generated by my procedure and f are plotted 
+in the following figure.
+```{r Q2c, echo = FALSE, fig.width = 8}
+hist(rand.samplesF, freq=FALSE, main="Estimation Density vs True Density of f(x)")
+lines(x_value,truthF,col="red",lwd=2)
+legend("topright",c("True Density","Estimated Density"),col=c("red","black"),lwd=2)
+
+plot(density(rand.samplesF),main="Density Estimate of the Mixture Model",ylim=c(0,3),lwd=2)
+lines(x_value,truthF,col="red",lwd=2)
+legend("topright",c("True Density","Estimated Density"),col=c("red","black"),lwd=2)
+```
+
+# Problem 3
+**Answer:** 
+
+a) Design a mixture of Beta distributions $g(x)$ as the instrumental density to draw
+sample from $f(x)$, where $f(x)$ is a pbability density on $(0,1)$ such that
+\begin{align}
+f(x) \propto q(x) = \frac{x^{\theta-1}}{1+x^2} +\sqrt{(2+x^2)}(1-x)^{\beta-1}, 0<x<1
+\end{align}.
+
+The instrumental density $g(x)$ have the form $\sum_{k=1}^{m}p_kg_k(x)$, 
+where $p_k$ are weights and $g_k$ are densities of Beta distribution.
+Comparing to Beta$(\theta,\beta)$ density definition,
+\begin{align}
+z(x) = \frac{x^{\theta-1}(1-x)^{\beta-1}}{B(\theta,\beta)}
+\end{align}
+Rewite $q(x)$,
+\begin{align}
+q(x) = \frac{1}{1+x^2} x^{\theta-1}(1-x)^{0} +\sqrt{(2+x^2)}x^0(1-x)^{\beta-1}
+\end{align}
+Since $x\in (0,1)$
+\begin{align}
+q(x) \leq x^{\theta-1}(1-x)^{0} +\sqrt{3}x^0(1-x)^{\beta-1} 
+=   x^{\theta-1} +\sqrt{3}(1-x)^{\beta-1} 
+\end{align}
+My choice of the mixture model is,
+\begin{align}
+g(x) = p_1g_1(x) +p_2g_2(x),
+\end{align}
+where
+\begin{align}
+\begin{array}{l}
+g_1(x) = \frac{x^{\theta-1}(1-x)^{0}}{B(\theta,1)} 
+=\frac{x^{\theta-1}}{B(\theta,1)} = Beta(\theta,1)\\
+g_2(x) = \frac{x^0(1-x)^{\beta-1}}{B(1,\beta)}
+= \frac{(1-x)^{\beta-1}}{B(1,\beta)} = Beta(1,\beta)\\
+p_1=p_2=0.5 \qquad and \qquad \sum p_k = 1\\
+\end{array}
+\end{align}
+In order to satisfy 
+\begin{align}
+q(x) \leq x^{\theta-1} +\sqrt{3}(1-x)^{\beta-1} \leq \alpha g(x),
+\end{align}
+the choice of $\alpha$ is shown as follow.
+\begin{align}
+\begin{array}{l}
+\alpha g(x) = 0.5\alpha( g_1(x) + g_2(x)) \\
+= 0.5\alpha( \frac{x^{\theta-1}}{B(\theta,1)} + 
+\frac{(1-x)^{\beta-1}}{B(1,\beta)}) \\
+= 0.5\alpha \theta x^{\theta-1} + 0.5\alpha \beta (1-x)^{\beta-1},
+\end{array}
+\end{align}
+where
+\begin{align} 
+1\leq 0.5\alpha \theta \qquad and \qquad \sqrt{3} \leq 0.5\alpha \beta
+\end{align}
+Solve for $\alpha$,
+\begin{align} 
+\frac{2}{\theta}\leq \alpha \qquad and \qquad \frac{2\sqrt{3}}{\beta} \leq \alpha 
+\end{align}
+This means $\alpha=max(\frac{2}{\theta},\frac{2\sqrt{3}}{\beta})$ based on target function's
+parameters.
+
+The code chunk implementing Rejection sampling is given as follow,
+```{r, eval = TRUE}
+#The number of samples from the mixture distribution
+N <- 10000                 
+
+#Variable to store the samples from the mixture distribution                                             
+rand.samplesF <- rep(NA,N)
+
+#Setup parameters
+theta <- 7
+beta <- 5
+
+#check for the normalizing constant 
+integrandq <- function(x) {((x^(theta-1))/(1+x^2))+sqrt(2+x^2)*(1-x)^(beta-1)}
+C_f <- integrate(integrandq, lower = 0, upper = 1)
+C_f <- C_f$value
+C_f <- 1/C_f
+
+#envelope setting (10,20)
+alpha <- max(2/theta,2*sqrt(3)/beta)
+c1 <- 0.5
+c2 <- 0.5
+g_x <- function(x) {c1*dbeta(x,theta,1) + c2*dbeta(x,1,beta)}
+
+#plot f and envelope
+x_value3 <- seq(0,1,.01)
+truthF <- C_f*integrandq(x_value3)
+#plot(x_value3,truthF,col="red",lwd=2)
+truthG <- g_x(x_value3)
+Envelop <- alpha*truthG
+#lines(x_value3,Envelop,col="blue",lwd=2)
+
+#Rejection Sampling from the envelop
+for (i in 1:N) {
+  while (TRUE) {
+    U <- runif(1)
+    if(U < c1){
+      cand <- rbeta(1,theta,1)
+    }else{
+      cand <- rbeta(1,1,beta)
+    }
+    ratio <- F(cand)/(alpha*g_x(cand))
+    rejection <- runif(1)
+    if (rejection < ratio) break
+  }
+  rand.samplesF[i] <- cand
+}
+```
+
+
+The the estimated density of a random sample generated by my procedure and f are plotted 
+in the following figure.
+```{r Q3a, echo = FALSE, fig.width = 8}
+hist(rand.samplesF, freq=FALSE, main="Estimation Density vs True Density of f(x)")
+lines(x_value3,truthF,col="red",lwd=2)
+legend("topright",c("True Density","Estimated Density"),col=c("red","black"),lwd=2)
+
+plot(density(rand.samplesF),main="Density Estimate of the Mixture Model",ylim=c(0,5),lwd=2)
+lines(x_value3,truthF,col="red",lwd=2)
+legend("topright",c("True Density","Estimated Density"),col=c("red","black"),lwd=2)
+```
+
+b) $f(x)$ can also be sampled using rejection sampling, by dealing with two components
+$\frac{x^{\theta-1}}{1+x^2}$ and $\sqrt{(2+x^2)}(1-x)^{\beta-1}$ separately using 
+individual Beta distributions.
+
+From a), two Beta distribution have been picked up.
+\begin{align}
+\begin{array}{l}
+g(x)=\alpha_1 g_1(x) +\alpha_2 g_2(x) \\
+q(x) \leq x^{\theta-1} +\sqrt{3}(1-x)^{\beta-1} \leq \alpha g(x)
+\end{array}
+\end{align}
+Thus,
+\begin{align}
+\begin{array}{l}
+x^{\theta-1} \leq \alpha_1 g_1(x) \qquad and \qquad 
+\sqrt{3}(1-x)^{\beta-1} \leq \alpha_2 g_2(x) \\
+\frac{1}{\theta}\leq \alpha_1 \qquad and \qquad \frac{\sqrt{3}}{\beta} \leq \alpha_2 
+\end{array}
+\end{align}
+Set weighted $\lambda = \frac{\frac{1}{\theta}}{\frac{1}{\theta}+\frac{\sqrt{3}}{\beta}}$.
+
+The code chunk implementing Rejection sampling is given as follow,
+```{r, eval = TRUE}
+#The number of samples from the mixture distribution
+N <- 10000                 
+
+#Variable to store the samples from the mixture distribution                                             
+rand.samplesF <- rep(NA,N)
+
+#Setup parameters
+theta <- 7
+beta <- 5
+#theta <- 9
+#beta <- 5
+
+#check for the normalizing constant 
+integrandq <- function(x) {((x^(theta-1))/(1+x^2))+sqrt(2+x^2)*(1-x)^(beta-1)}
+C_f <- integrate(integrandq, lower = 0, upper = 1)
+C_f <- C_f$value
+C_f <- 1/C_f
+
+#envelope setting (10,20)
+alpha1 <- 1/theta
+alpha2 <- sqrt(3)/beta
+g_x <- function(x) {dbeta(x,theta,1) + dbeta(x,1,beta)}
+Envelop <- function(x) {alpha1*dbeta(x,theta,1) + alpha2*dbeta(x,1,beta)}
+
+#plot f
+x_value3 <- seq(0,1,.01)
+truthF <- C_f*integrandq(x_value3)
+#plot(x_value3,truthF,col="red",lwd=2)
+truthG <- g_x(x_value3)
+EnvelopG <- Envelop(x_value3)
+#lines(x_value3,EnvelopG,col="blue",lwd=2)
+
+#Rejection Sampling from the envelop
+for (i in 1:N) {
+  while (TRUE) {
+    U <- runif(1)
+    if(U < alpha1/(alpha1+alpha2)){
+      cand <- rbeta(1,theta,1)
+    }else{
+      cand <- rbeta(1,1,beta)
+    }
+    ratio <- F(cand)/(Envelop(cand))
+    rejection <- runif(1)
+    if (rejection < ratio) break
+  }
+  rand.samplesF[i] <- cand
+}
+```
+
+The the estimated density of a random sample generated by my procedure and f are plotted 
+in the following figure.
+```{r Q3b, echo = FALSE, fig.width = 8}
+hist(rand.samplesF, freq=FALSE, main="Estimation Density vs True Density of f(x)")
+lines(x_value3,truthF,col="red",lwd=2)
+legend("topright",c("True Density","Estimated Density"),col=c("red","black"),lwd=2)
+
+plot(density(rand.samplesF),main="Density Estimate of the Mixture Model",ylim=c(0,5),lwd=2)
+lines(x_value3,truthF,col="red",lwd=2)
+legend("topright",c("True Density","Estimated Density"),col=c("red","black"),lwd=2)
+```
