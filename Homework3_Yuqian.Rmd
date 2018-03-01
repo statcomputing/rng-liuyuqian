@@ -130,13 +130,12 @@ Thus,
 \begin{align}
 \int_0 ^\infty (2x^{\theta-1}+x^{\theta-1/2})e^{-x}dx = 
 \int_0 ^\infty 2x^{\theta-1}e^{-x}dx +\int_0 ^\infty x^{\theta-1/2}e^{-x}dx
- (\#eq:2a)
 \end{align}
 By the definition of gamma function,
 \begin{align}
 \Gamma(y) = \int_0 ^\infty x^{y-1}e^{-x}dx
 \end{align}
-Thus, the integration of Equation \@ref(eq:2a) is equal to,
+Thus, the integration is equal to,
 \begin{align}
 \int_0 ^\infty (2x^{\theta-1}+x^{\theta-1/2})e^{-x}dx = 
 2\Gamma(\theta)+\Gamma(\theta+1/2)
